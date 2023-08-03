@@ -131,7 +131,7 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         }
 
         // UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
-        UsbSerialDriver driver = UsbSerialProber(device);
+        UsbSerialDriver driver = UsbSerialDriver(device);
         if (driver == null) {
             promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
             return;
