@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -129,40 +130,44 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             return;
         }
 
-        UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
-        if (driver == null) {
-            promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
-            return;
-        }
-        if (driver.getPorts().size() < 0) {
-            promise.reject(CODE_NOT_ENOUGH_PORTS, "not enough ports at device");
-            return;
-        }
+        // UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
+        // if (driver == null) {
+        //     promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
+        //     return;
+        // }
+        // if (driver.getPorts().size() < 0) {
+        //     promise.reject(CODE_NOT_ENOUGH_PORTS, "not enough ports at device");
+        //     return;
+        // }
 
-        UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
+        // UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
+        UsbDeviceConnection connection = usbManager.openDevice(device);
         if(connection == null) {
-            if (!usbManager.hasPermission(driver.getDevice())) {
+            // if (!usbManager.hasPermission(driver.getDevice())) {
+            if (!usbManager.hasPermission(device)) {
                 promise.reject(CODE_PERMISSION_DENIED, "connection failed: permission denied");
             } else {
                 promise.reject(CODE_OPEN_FAILED, "connection failed: open failed");
             }
             return;
         }
+        Log.i("DEBUG", "Se conecto exitosamente!");
 
-        UsbSerialPort port = driver.getPorts().get(0);
-        try {
-            port.open(connection);
-            port.setParameters(baudRate, dataBits, stopBits, parity);
-        } catch (IOException e) {
-            try {
-                 port.close();
-            } catch (IOException ignored) {}
-            promise.reject(CODE_OPEN_FAILED, "connection failed", e);
-            return;
-        }
 
-        wrapper = new UsbSerialPortWrapper(deviceId, port, this);
-        usbSerialPorts.put(deviceId, wrapper);
+        // UsbSerialPort port = driver.getPorts().get(0);
+        // try {
+        //     port.open(connection);
+        //     port.setParameters(baudRate, dataBits, stopBits, parity);
+        // } catch (IOException e) {
+        //     try {
+        //          port.close();
+        //     } catch (IOException ignored) {}
+        //     promise.reject(CODE_OPEN_FAILED, "connection failed", e);
+        //     return;
+        // }
+
+        // wrapper = new UsbSerialPortWrapper(deviceId, port, this);
+        // usbSerialPorts.put(deviceId, wrapper);
         promise.resolve(deviceId);
     }
 
