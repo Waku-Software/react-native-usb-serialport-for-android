@@ -131,14 +131,16 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         }
 
         // UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
-        // if (driver == null) {
-        //     promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
-        //     return;
-        // }
-        // if (driver.getPorts().size() < 0) {
-        //     promise.reject(CODE_NOT_ENOUGH_PORTS, "not enough ports at device");
-        //     return;
-        // }
+        UsbSerialDriver driver = UsbSerialProber(device);
+        if (driver == null) {
+            promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
+            return;
+        }
+        if (driver.getPorts().size() < 0) {
+            promise.reject(CODE_NOT_ENOUGH_PORTS, "not enough ports at device");
+            return;
+        }
+        Log.i("DEBUG", "El driver se genero exitosamente");
 
         // UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
         UsbDeviceConnection connection = usbManager.openDevice(device);
@@ -154,20 +156,21 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         Log.i("DEBUG", "Se conecto exitosamente!");
 
 
-        // UsbSerialPort port = driver.getPorts().get(0);
-        // try {
-        //     port.open(connection);
-        //     port.setParameters(baudRate, dataBits, stopBits, parity);
-        // } catch (IOException e) {
-        //     try {
-        //          port.close();
-        //     } catch (IOException ignored) {}
-        //     promise.reject(CODE_OPEN_FAILED, "connection failed", e);
-        //     return;
-        // }
+        UsbSerialPort port = driver.getPorts().get(0);
+        try {
+            port.open(connection);
+            port.setParameters(baudRate, dataBits, stopBits, parity);
+        } catch (IOException e) {
+            try {
+                 port.close();
+            } catch (IOException ignored) {}
+            promise.reject(CODE_OPEN_FAILED, "connection failed", e);
+            return;
+        }
 
-        // wrapper = new UsbSerialPortWrapper(deviceId, port, this);
-        // usbSerialPorts.put(deviceId, wrapper);
+        wrapper = new UsbSerialPortWrapper(deviceId, port, this);
+        usbSerialPorts.put(deviceId, wrapper);
+        Log.i("DEBUG", "open se ejecuto exitosamente");
         promise.resolve(deviceId);
     }
 
