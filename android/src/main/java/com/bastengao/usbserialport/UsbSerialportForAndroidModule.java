@@ -22,6 +22,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
+import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -131,7 +132,7 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         }
 
         // UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
-        UsbSerialDriver driver = UsbSerialDriver(device);
+        UsbSerialDriver driver = new CdcAcmSerialDriver(device); // Working USB driver for HKA80
         if (driver == null) {
             promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
             return;
@@ -227,6 +228,11 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
     }
 
     public static byte[] hexStringToByteArray(String s) {
+        if (s.length() % 2 == 1) {
+            throw new IllegalArgumentException(
+                    "Invalid hexadecimal String supplied.");
+        }
+        
         int len = s.length();
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
