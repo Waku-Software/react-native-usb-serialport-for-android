@@ -19,6 +19,7 @@
     "!**/__mocks__"
   ],
   "scripts": {
+    "build": "expo-module build",
     "test": "jest",
     "typescript": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",

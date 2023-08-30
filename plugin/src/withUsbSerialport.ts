@@ -1,10 +1,11 @@
-const { withUsb } = require('@expo/config-plugins');
-import { ConfigPlugin, createRunOncePlugin } from '@expo/config-plugins';
+import { ConfigPlugin } from '@expo/config-plugins';
 
 const pkg = require('react-native-usb-serialport-for-android/package.json')
+console.log(pkg)
 
 const withUsbSerialPort: ConfigPlugin = (config) => {
-  return withUsb(config);
+  console.log("My custom plugin")
+  return config;
 };
 
-export default createRunOncePlugin(withUsbSerialPort, pkg.name, pkg.version);
+export default withUsbSerialPort;
