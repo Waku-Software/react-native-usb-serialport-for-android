@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -21,6 +22,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
+import com.hoho.android.usbserial.driver.CdcAcmSerialDriver;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -129,7 +131,8 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             return;
         }
 
-        UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
+        // UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
+        UsbSerialDriver driver = new CdcAcmSerialDriver(device); // Working USB driver for HKA80
         if (driver == null) {
             promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
             return;
@@ -138,16 +141,21 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             promise.reject(CODE_NOT_ENOUGH_PORTS, "not enough ports at device");
             return;
         }
+        Log.i("DEBUG", "El driver se genero exitosamente");
 
-        UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
+        // UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
+        UsbDeviceConnection connection = usbManager.openDevice(device);
         if(connection == null) {
-            if (!usbManager.hasPermission(driver.getDevice())) {
+            // if (!usbManager.hasPermission(driver.getDevice())) {
+            if (!usbManager.hasPermission(device)) {
                 promise.reject(CODE_PERMISSION_DENIED, "connection failed: permission denied");
             } else {
                 promise.reject(CODE_OPEN_FAILED, "connection failed: open failed");
             }
             return;
         }
+        Log.i("DEBUG", "Se conecto exitosamente!");
+
 
         UsbSerialPort port = driver.getPorts().get(0);
         try {
@@ -163,6 +171,7 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
 
         wrapper = new UsbSerialPortWrapper(deviceId, port, this);
         usbSerialPorts.put(deviceId, wrapper);
+        Log.i("DEBUG", "open se ejecuto exitosamente");
         promise.resolve(deviceId);
     }
 
@@ -219,6 +228,11 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
     }
 
     public static byte[] hexStringToByteArray(String s) {
+        if (s.length() % 2 == 1) {
+            throw new IllegalArgumentException(
+                    "Invalid hexadecimal String supplied.");
+        }
+        
         int len = s.length();
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
