@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -98,12 +99,17 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             return;
         }
 
-        // ÚNICO CAMBIO: usar FLAG_IMMUTABLE
+        // Verificar versión de Android para usar el flag correcto
+        int flags = 0;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags = PendingIntent.FLAG_IMMUTABLE;
+        }
+        
         PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(
             getCurrentActivity(),
             0,
             new Intent(INTENT_ACTION_GRANT_USB),
-            PendingIntent.FLAG_IMMUTABLE
+            flags
         );
 
         usbManager.requestPermission(device, usbPermissionIntent);
