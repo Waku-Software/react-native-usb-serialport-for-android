@@ -1,6 +1,7 @@
 package com.bastengao.usbserialport;
 
 import android.app.PendingIntent;
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -51,8 +52,7 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         this.reactContext = reactContext;
     }
 
-    @Override
-    @NonNull
+    @Override @NonNull
     public String getName() {
         return NAME;
     }
@@ -71,14 +71,35 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         return constants;
     }
 
+    // ===== Helpers =====
+    private Activity requireActivityOrReject(Promise promise) {
+        Activity act = getCurrentActivity();
+        if (act == null) {
+            if (promise != null) {
+                promise.reject(CODE_OPEN_FAILED, "Current Activity is null. Bring app to foreground and retry.");
+            }
+            return null;
+        }
+        return act;
+    }
+
+    private UsbManager getUsbManagerFromActivity(Activity act) {
+        return (UsbManager) act.getSystemService(Context.USB_SERVICE);
+    }
+
+    // ===== API =====
     @ReactMethod
     public void list(Promise promise) {
         WritableArray devices = Arguments.createArray();
-        UsbManager usbManager = (UsbManager) reactContext.getSystemService(Context.USB_SERVICE);
+        Activity act = requireActivityOrReject(promise);
+        if (act == null) return;
+
+        UsbManager usbManager = getUsbManagerFromActivity(act);
         if (usbManager == null) {
             promise.resolve(devices);
             return;
         }
+
         for (UsbDevice device : usbManager.getDeviceList().values()) {
             WritableMap d = Arguments.createMap();
             d.putInt("deviceId", device.getDeviceId());
@@ -91,7 +112,10 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
 
     @ReactMethod
     public void tryRequestPermission(int deviceId, Promise promise) {
-        UsbManager usbManager = (UsbManager) reactContext.getSystemService(Context.USB_SERVICE);
+        Activity act = requireActivityOrReject(promise);
+        if (act == null) return;
+
+        UsbManager usbManager = getUsbManagerFromActivity(act);
         if (usbManager == null) {
             promise.reject(CODE_OPEN_FAILED, "UsbManager is null");
             return;
@@ -103,12 +127,11 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
         }
 
         if (usbManager.hasPermission(device)) {
-            // Ya tiene permiso
             promise.resolve(1);
             return;
         }
 
-        // Registrar receiver para esperar la respuesta del sistema
+        // Receiver para el resultado del diálogo del sistema
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -126,26 +149,29 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             }
         };
 
+        // Registrar con el contexto de la Activity (válido también el application context)
         IntentFilter filter = new IntentFilter(INTENT_ACTION_GRANT_USB);
-        reactContext.registerReceiver(receiver, filter);
+        act.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
 
-        // PendingIntent con FLAG_IMMUTABLE (requerido Android 12+)
+        // PendingIntent usando la Activity y con FLAG_IMMUTABLE (Android 12+)
         int flags = PendingIntent.FLAG_IMMUTABLE;
         PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(
-                reactContext,
+                act, // usar Activity como pediste
                 0,
                 new Intent(INTENT_ACTION_GRANT_USB),
                 flags
         );
 
-        // Mostrar diálogo de permiso
         usbManager.requestPermission(device, usbPermissionIntent);
-        // NOTE: NO resolvemos el promise aquí; se resuelve en el receiver.
+        // El promise se resuelve en el receiver.
     }
 
     @ReactMethod
     public void hasPermission(int deviceId, Promise promise) {
-        UsbManager usbManager = (UsbManager) reactContext.getSystemService(Context.USB_SERVICE);
+        Activity act = requireActivityOrReject(promise);
+        if (act == null) return;
+
+        UsbManager usbManager = getUsbManagerFromActivity(act);
         if (usbManager == null) {
             promise.reject(CODE_OPEN_FAILED, "UsbManager is null");
             return;
@@ -166,7 +192,10 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             return;
         }
 
-        UsbManager usbManager = (UsbManager) reactContext.getSystemService(Context.USB_SERVICE);
+        Activity act = requireActivityOrReject(promise);
+        if (act == null) return;
+
+        UsbManager usbManager = getUsbManagerFromActivity(act);
         if (usbManager == null) {
             promise.reject(CODE_OPEN_FAILED, "UsbManager is null");
             return;
@@ -177,17 +206,17 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             return;
         }
 
-        // UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
-        UsbSerialDriver driver = new CdcAcmSerialDriver(device); // driver específico, ajusta si corresponde
+        // Usa el driver que corresponda a tu impresora (CDC es común en fiscales)
+        UsbSerialDriver driver = new CdcAcmSerialDriver(device);
         if (driver == null) {
             promise.reject(CODE_DRIVER_NOT_FOND, "no driver for device");
             return;
         }
-        if (driver.getPorts().size() < 1) { // fix: era < 0
+        if (driver.getPorts().size() < 1) { // fix
             promise.reject(CODE_NOT_ENOUGH_PORTS, "not enough ports at device");
             return;
         }
-        Log.i("DEBUG", "El driver se generó exitosamente");
+        Log.i("USB", "Driver creado OK");
 
         if (!usbManager.hasPermission(device)) {
             promise.reject(CODE_PERMISSION_DENIED, "connection failed: permission denied");
@@ -199,7 +228,7 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             promise.reject(CODE_OPEN_FAILED, "connection failed: open failed");
             return;
         }
-        Log.i("DEBUG", "Se conectó exitosamente!");
+        Log.i("USB", "UsbDeviceConnection OK");
 
         UsbSerialPort port = driver.getPorts().get(0);
         try {
@@ -213,7 +242,7 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
 
         wrapper = new UsbSerialPortWrapper(deviceId, port, this);
         usbSerialPorts.put(deviceId, wrapper);
-        Log.i("DEBUG", "open se ejecutó exitosamente");
+        Log.i("USB", "Puerto abierto OK");
         promise.resolve(deviceId);
     }
 
@@ -258,8 +287,11 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
     }
 
     private UsbDevice findDevice(int deviceId) {
-        UsbManager usbManager = (UsbManager) reactContext.getSystemService(Context.USB_SERVICE);
+        Activity act = getCurrentActivity();
+        if (act == null) return null;
+        UsbManager usbManager = getUsbManagerFromActivity(act);
         if (usbManager == null) return null;
+
         for (UsbDevice device : usbManager.getDeviceList().values()) {
             if (device.getDeviceId() == deviceId) {
                 return device;
