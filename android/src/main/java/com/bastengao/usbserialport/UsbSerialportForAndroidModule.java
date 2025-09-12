@@ -49,6 +49,9 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
     public UsbSerialportForAndroidModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+        Log.e("UsbSerialport", "============================================");
+        Log.e("UsbSerialport", "MODULE INITIALIZED - VERSION WITH FLAG FIX");
+        Log.e("UsbSerialport", "============================================");
     }
 
     @Override
