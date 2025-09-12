@@ -99,18 +99,33 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
             return;
         }
 
-        // Verificar versión de Android para usar el flag correcto
-        int flags = 0;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags = PendingIntent.FLAG_IMMUTABLE;
+        // Para Android S+ (API 31+) es obligatorio especificar FLAG_IMMUTABLE o FLAG_MUTABLE
+        PendingIntent usbPermissionIntent;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ (API 31+) requiere FLAG_IMMUTABLE
+            usbPermissionIntent = PendingIntent.getBroadcast(
+                getCurrentActivity(),
+                0,
+                new Intent(INTENT_ACTION_GRANT_USB),
+                PendingIntent.FLAG_IMMUTABLE
+            );
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android 6+ (API 23+) soporta FLAG_IMMUTABLE (valor 0x04000000)
+            usbPermissionIntent = PendingIntent.getBroadcast(
+                getCurrentActivity(),
+                0,
+                new Intent(INTENT_ACTION_GRANT_USB),
+                0x04000000 // FLAG_IMMUTABLE value
+            );
+        } else {
+            // Android < 6 usa flag 0
+            usbPermissionIntent = PendingIntent.getBroadcast(
+                getCurrentActivity(),
+                0,
+                new Intent(INTENT_ACTION_GRANT_USB),
+                0
+            );
         }
-        
-        PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(
-            getCurrentActivity(),
-            0,
-            new Intent(INTENT_ACTION_GRANT_USB),
-            flags
-        );
 
         usbManager.requestPermission(device, usbPermissionIntent);
         promise.resolve(0);
