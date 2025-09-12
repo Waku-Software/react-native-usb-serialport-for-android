@@ -87,49 +87,56 @@ public class UsbSerialportForAndroidModule extends ReactContextBaseJavaModule im
 
     @ReactMethod
     public void tryRequestPermission(int deviceId, Promise promise) {
+        Log.d("UsbSerialport", "=== tryRequestPermission START ===");
+        Log.d("UsbSerialport", "Device ID: " + deviceId);
+        Log.d("UsbSerialport", "Android SDK Version: " + Build.VERSION.SDK_INT);
+        
         UsbManager usbManager = (UsbManager) getCurrentActivity().getSystemService(Context.USB_SERVICE);
         UsbDevice device = findDevice(deviceId);
         if (device == null) {
+            Log.e("UsbSerialport", "Device not found for ID: " + deviceId);
             promise.reject(CODE_DEVICE_NOT_FOND, "device not found");
             return;
         }
 
+        Log.d("UsbSerialport", "Device found: " + device.getDeviceName());
+        
         if (usbManager.hasPermission(device)) {
+            Log.d("UsbSerialport", "Permission already granted");
             promise.resolve(1);
             return;
         }
 
-        // Para Android S+ (API 31+) es obligatorio especificar FLAG_IMMUTABLE o FLAG_MUTABLE
-        // Usamos valores numéricos directos para evitar problemas de compilación
-        PendingIntent usbPermissionIntent;
-        if (Build.VERSION.SDK_INT >= 31) { // Android 12+ (S = API 31)
-            // Android 12+ requiere FLAG_IMMUTABLE (0x04000000)
-            usbPermissionIntent = PendingIntent.getBroadcast(
+        Log.d("UsbSerialport", "Requesting USB permission...");
+        
+        // SIEMPRE usar FLAG_IMMUTABLE (0x04000000) sin importar la versión de Android
+        // Esto es para Android 12+ (API 31+) donde es obligatorio
+        int flags = 0x04000000; // PendingIntent.FLAG_IMMUTABLE
+        
+        Log.d("UsbSerialport", "Creating PendingIntent with FLAG_IMMUTABLE (0x04000000)");
+        
+        try {
+            PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(
                 getCurrentActivity(),
                 0,
                 new Intent(INTENT_ACTION_GRANT_USB),
-                0x04000000 // PendingIntent.FLAG_IMMUTABLE
+                flags
             );
-        } else if (Build.VERSION.SDK_INT >= 23) { // Android 6+ (M = API 23)
-            // Android 6+ soporta FLAG_IMMUTABLE pero no es obligatorio
-            usbPermissionIntent = PendingIntent.getBroadcast(
-                getCurrentActivity(),
-                0,
-                new Intent(INTENT_ACTION_GRANT_USB),
-                0x04000000 // PendingIntent.FLAG_IMMUTABLE
-            );
-        } else {
-            // Android < 6 no soporta FLAG_IMMUTABLE
-            usbPermissionIntent = PendingIntent.getBroadcast(
-                getCurrentActivity(),
-                0,
-                new Intent(INTENT_ACTION_GRANT_USB),
-                0
-            );
+            
+            Log.d("UsbSerialport", "PendingIntent created successfully");
+            
+            usbManager.requestPermission(device, usbPermissionIntent);
+            
+            Log.d("UsbSerialport", "Permission request sent");
+            promise.resolve(0);
+            
+        } catch (Exception e) {
+            Log.e("UsbSerialport", "Error creating PendingIntent: " + e.getMessage());
+            Log.e("UsbSerialport", "Stack trace: ", e);
+            promise.reject("PENDING_INTENT_ERROR", "Error creating PendingIntent: " + e.getMessage(), e);
         }
-
-        usbManager.requestPermission(device, usbPermissionIntent);
-        promise.resolve(0);
+        
+        Log.d("UsbSerialport", "=== tryRequestPermission END ===");
     }
 
     @ReactMethod
